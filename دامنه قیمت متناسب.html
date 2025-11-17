@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محاسبه‌گر دامنه قیمت متناسب مناقصه</title>
+    
+    <!-- Google Fonts: Vazirmatn -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- jsPDF and html2canvas for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #0d47a1;
+            --secondary-color: #1976d2;
+            --success-color: #2e7d32;
+            --error-color: #c62828;
+            --background-color: #f4f7f9;
+            --card-background: #ffffff;
+            --text-color: #333333;
+            --border-color: #e0e0e0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 2rem 1rem;
+            text-align: center;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background-color: var(--card-background);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        input[type="number"],
+        textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-size: 1rem;
+            font-family: 'Vazirmatn', sans-serif;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input[type="number"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+        }
+        
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .helper-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 0.8rem 2rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+        }
+        .btn-success:hover {
+            background-color: #1b5e20;
+        }
+        
+        .btn-block {
+            width: 100%;
+            text-align: center;
+        }
+
+        #results-section {
+            display: none; /* Initially hidden */
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-item {
+            background-color: #e3f2fd;
+            padding: 1rem;
+            border-radius: 5px;
+            text-align: center;
+            border-right: 4px solid var(--secondary-color);
+        }
+
+        .summary-item .label {
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-item .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        /* Schematic Styles */
+        .schematic-container {
+            position: relative;
+            height: 120px;
+            background-color: #fafafa;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        .schematic-line {
+            position: absolute;
+            top: 50%;
+            left: 5%;
+            right: 5%;
+            height: 4px;
+            background-color: var(--secondary-color);
+            transform: translateY(-50%);
+            border-radius: 2px;
+        }
+        .schematic-point {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+        .schematic-point:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+        }
+        .schematic-point.inside {
+            background-color: #c8e6c9;
+            color: var(--success-color);
+        }
+        .schematic-point.outside {
+            background-color: #ffcdd2;
+            color: var(--error-color);
+        }
+        .schematic-label {
+            position: absolute;
+            bottom: 5px;
+            font-size: 0.8rem;
+            color: #666;
+            transform: translateX(-50%);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            padding: 0.8rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .status-icon {
+            font-size: 1.5rem;
+        }
+
+        .error-message {
+            background-color: #ffebee;
+            color: var(--error-color);
+            padding: 1rem;
+            border-radius: 5px;
+            border-right: 4px solid var(--error-color);
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            font-size: 0.9rem;
+            color: #777;
+            border-top: 1px solid var(--border-color);
+            margin-top: 3rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 1rem;
+            }
+            header h1 {
+                font-size: 1.5rem;
+            }
+            .card {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>محاسبه‌گر دامنه قیمت متناسب مناقصه</h1>
+            <p>بر اساس آیین‌نامه اجرایی معاملات دولتی</p>
+        </header>
+
+        <main>
+            <section class="card">
+                <div class="error-message" id="error-message"></div>
+                
+                <form id="tender-form">
+                    <div class="form-group">
+                        <label for="prices">لیست قیمت‌های پیشنهادی (ریال)</label>
+                        <textarea id="prices" placeholder="هر قیمت را در یک خط وارد کنید. مثال:
+500000000
+520000000
+480000000
+510000000
+490000000" required></textarea>
+                        <span class="helper-text">تمام قیمت‌های پیشنهادی شرکت‌کنندگان را به صورت جداگانه وارد نمایید.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="outliers-count">تعداد پیشنهادهای حذفی از هر طرف (m)</label>
+                        <input type="number" id="outliers-count" value="1" min="0" required>
+                        <span class="helper-text">تعداد پیشنهادهای بالاترین و پایین‌ترین قیمت که باید از محاسبات حذف شوند.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="alpha-coefficient">ضریب دامنه مجاز (α)</label>
+                        <input type="number" id="alpha-coefficient" value="0.15" step="0.01" min="0" max="1" required>
+                        <span class="helper-text">به صورت اعشاری وارد کنید. مثلاً برای 15٪، عدد 0.15 را وارد نمایید.</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-block">محاسبه و نمایش نتایج</button>
+                </form>
+            </section>
+
+            <section id="results-section" class="card">
+                <h2 style="margin-bottom: 1.5rem; color: var(--primary-color);">نتایج محاسبات</h2>
+                
+                <div class="summary">
+                    <div class="summary-item">
+                        <div class="label">میانگین تعدیل‌یافته (P̄)</div>
+                        <div class="value" id="mean-value">-</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">حد پایین دامنه</div>
+                        <div class="value" id="lower-bound-value">-</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">حد بالا دامنه</div>
+                        <div class="value" id="upper-bound-value">-</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 1rem; color: var(--primary-color);">نمودار شماتیک پیشنهادها</h3>
+                <div id="schematic" class="schematic-container">
+                    <div class="schematic-line"></div>
+                </div>
+
+                <h3 style="margin-bottom: 1rem; color: var(--primary-color);">جزئیات پیشنهادها</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ردیف</th>
+                            <th>مبلغ پیشنهادی (ریال)</th>
+                            <th>وضعیت</th>
+                            <th>علامت</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table-body">
+                        <!-- Rows will be inserted here by JS -->
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 2rem;">
+                    <button id="save-pdf-btn" class="btn btn-success btn-block">ذخیره نتایج به صورت PDF</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>توسعه‌دهنده: م.رضا پویا</p>
+            <p>کلیه حقوق این نرم‌افزار محفوظ بوده و استفاده از آن با ذکر منبع بلامانع است.</p>
+            <p>&copy; 2024</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('tender-form');
+            const resultsSection = document.getElementById('results-section');
+            const errorMessageDiv = document.getElementById('error-message');
+            const schematicContainer = document.getElementById('schematic');
+            const savePdfBtn = document.getElementById('save-pdf-btn');
+
+            function showError(message) {
+                errorMessageDiv.textContent = message;
+                errorMessageDiv.style.display = 'block';
+                resultsSection.style.display = 'none';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            function hideError() {
+                errorMessageDiv.style.display = 'none';
+            }
+
+            function formatNumber(num) {
+                return new Intl.NumberFormat('fa-IR').format(num);
+            }
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                hideError();
+
+                // 1. Get and parse inputs
+                const pricesText = document.getElementById('prices').value;
+                const m = parseInt(document.getElementById('outliers-count').value, 10);
+                const alpha = parseFloat(document.getElementById('alpha-coefficient').value);
+
+                const originalPrices = pricesText
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line !== '')
+                    .map(line => parseInt(line.replace(/,/g, ''), 10));
+
+                // 2. Validation
+                if (originalPrices.some(isNaN)) {
+                    showError("خطا: لطفاً تمام مقادیر قیمت را به صورت عددی وارد کنید.");
+                    return;
+                }
+                if (originalPrices.length < 3) {
+                    showError("خطا: تعداد پیشنهادها باید حداقل 3 عدد باشد.");
+                    return;
+                }
+                if (originalPrices.length <= 2 * m) {
+                    showError(`خطا: با توجه به m=${m}، تعداد کل پیشنهادها (${originalPrices.length}) باید بیشتر از ${2 * m} باشد تا بتوان محاسبه انجام داد.`);
+                    return;
+                }
+                if (alpha < 0 || alpha > 1) {
+                    showError("خطا: ضریب دامنه مجاز (α) باید بین 0 و 1 باشد.");
+                    return;
+                }
+
+                // 3. Algorithm Implementation
+                const sortedPrices = [...originalPrices].sort((a, b) => a - b);
+                const selectedPrices = sortedPrices.slice(m, sortedPrices.length - m);
+                const k = selectedPrices.length;
+                const sum = selectedPrices.reduce((acc, val) => acc + val, 0);
+                const mean = sum / k;
+
+                const lowerBound = mean * (1 - alpha);
+                const upperBound = mean * (1 + alpha);
+
+                // 4. Display results
+                document.getElementById('mean-value').textContent = formatNumber(Math.round(mean));
+                document.getElementById('lower-bound-value').textContent = formatNumber(Math.round(lowerBound));
+                document.getElementById('upper-bound-value').textContent = formatNumber(Math.round(upperBound));
+
+                // 5. Draw Schematic
+                drawSchematic(originalPrices, lowerBound, upperBound);
+
+                // 6. Populate Table
+                const tableBody = document.getElementById('results-table-body');
+                tableBody.innerHTML = ''; // Clear previous results
+                originalPrices.forEach((price, index) => {
+                    const row = tableBody.insertRow();
+                    const isInside = price >= lowerBound && price <= upperBound;
+                    
+                    row.insertCell(0).textContent = index + 1;
+                    row.insertCell(1).textContent = formatNumber(price);
+                    row.insertCell(2).textContent = isInside ? 'متناسب' : 'غیرمتناسب';
+                    
+                    const statusCell = row.insertCell(3);
+                    const icon = document.createElement('span');
+                    icon.className = 'status-icon';
+                    icon.textContent = isInside ? '✓' : '✗';
+                    icon.style.color = isInside ? 'var(--success-color)' : 'var(--error-color)';
+                    statusCell.appendChild(icon);
+                });
+
+                resultsSection.style.display = 'block';
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+            });
+
+            function drawSchematic(prices, lowerBound, upperBound) {
+                // Clear previous drawing
+                const points = schematicContainer.querySelectorAll('.schematic-point, .schematic-label');
+                points.forEach(p => p.remove());
+
+                const containerWidth = schematicContainer.offsetWidth - 40; // padding
+                const minPrice = Math.min(...prices);
+                const maxPrice = Math.max(...prices);
+                const range = maxPrice - minPrice || 1; // Avoid division by zero
+
+                prices.forEach(price => {
+                    const isInside = price >= lowerBound && price <= upperBound;
+                    const point = document.createElement('div');
+                    point.className = `schematic-point ${isInside ? 'inside' : 'outside'}`;
+                    point.textContent = isInside ? '✓' : '✗';
+
+                    const position = ((price - minPrice) / range) * containerWidth + 20; // +20 for padding
+                    point.style.left = `${position}px`;
+                    
+                    schematicContainer.appendChild(point);
+                });
+
+                // Add labels for bounds
+                const lowerLabel = document.createElement('div');
+                lowerLabel.className = 'schematic-label';
+                lowerLabel.textContent = formatNumber(Math.round(lowerBound));
+                lowerLabel.style.left = `${((lowerBound - minPrice) / range) * containerWidth + 20}px`;
+                schematicContainer.appendChild(lowerLabel);
+
+                const upperLabel = document.createElement('div');
+                upperLabel.className = 'schematic-label';
+                upperLabel.textContent = formatNumber(Math.round(upperBound));
+                upperLabel.style.left = `${((upperBound - minPrice) / range) * containerWidth + 20}px`;
+                schematicContainer.appendChild(upperLabel);
+            }
+            
+            savePdfBtn.addEventListener('click', () => {
+                const { jsPDF } = window.jspdf;
+                const element = resultsSection;
+
+                // Show loading state
+                savePdfBtn.textContent = 'در حال آماده‌سازی PDF...';
+                savePdfBtn.disabled = true;
+
+                html2canvas(element, {
+                    scale: 2, // Higher scale for better quality
+                    useCORS: true,
+                    logging: false
+                }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const imgWidth = 210; // A4 width in mm
+                    const pageHeight = 295; // A4 height in mm
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    let heightLeft = imgHeight;
+                    let position = 0;
+
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+
+                    while (heightLeft >= 0) {
+                        position = heightLeft - imgHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+                    
+                    pdf.save('tender-analysis-results.pdf');
+                    
+                    // Reset button state
+                    savePdfBtn.textContent = 'ذخیره نتایج به صورت PDF';
+                    savePdfBtn.disabled = false;
+                });
+            });
+        });
+    </script>
+</body>
+</html>
