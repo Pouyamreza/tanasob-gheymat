@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>محاسبه دامنه قیمت متناسب</title>
+  <style>
+    body {
+      font-family: "Vazir", "Tahoma", sans-serif;
+      background: #f9f9f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    .input-group {
+      margin-top: 15px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .tooltip {
+      font-size: 12px;
+      color: #007bff;
+      cursor: help;
+      margin-left: 4px;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #result, canvas, #pdfBtn {
+      display: none;
+      margin-top: 20px;
+    }
+    footer {
+      text-align: center;
+      font-size: 0.85em;
+      color: #888;
+      margin-top: 30px;
+    }
+  </style>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- jsPDF + html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>محاسبه دامنه قیمت متناسب (Pb)</h1>
+    <p class="copyright">توسعه‌دهنده: محمدرضا پویا — © 1404</p>
+
+    <form id="calcForm">
+      <!-- P₀ -->
+      <div class="input-group">
+        <label>قیمت مبنای (P₀) <span class="tooltip" title="قیمت پیشنهادی پیمانکار (تومان)">ℹ️</span></label>
+        <input type="number" id="P0" step="1000" required />
+      </div>
+
+      <!-- I₁ -->
+      <div class="input-group">
+        <label>شاخص I₁ <span class="tooltip" title="شاخص قیمت در زمان آگهی مناقصه (دوره پایه)">ℹ️</span></label>
+        <input type="number" id="I1" step="0.01" required />
+      </div>
+
+      <!-- I₂ -->
+      <div class="input-group">
+        <label>شاخص I₂ <span class="tooltip" title="شاخص قیمت یک سال قبل از دوره پایه">ℹ️</span></label>
+        <input type="number" id="I2" step="0.01" required />
+      </div>
+
+      <!-- I₃ -->
+      <div class="input-group">
+        <label>شاخص I₃ <span class="tooltip" title="شاخص قیمت دو سال قبل از دوره پایه">ℹ️</span></label>
+        <input type="number" id="I3" step="0.01" required />
+      </div>
+
+      <!-- I₄ -->
+      <div class="input-group">
+        <label>شاخص I₄ <span class="tooltip" title="شاخص قیمت در زمان پیش‌بینی اجرای پروژه">ℹ️</span></label>
+        <input type="number" id="I4" step="0.01" required />
+      </div>
+
+      <!-- α -->
+      <div class="input-group">
+        <label>ضریب α <span class="tooltip" title="ضریب تعدیل باصن/طسوتم (معمولاً 1.0)">ℹ️</span></label>
+        <input type="number" id="alpha" value="1.0" step="0.01" required />
+      </div>
+
+      <!-- z -->
+      <div class="input-group">
+        <label>ضریب z <span class="tooltip" title="ضریب زمانی بین I₁ و I₄ (مثلاً: 1.25 برای یک سال)">ℹ️</span></label>
+        <input type="number" id="z" value="1.32" step="0.01" required />
+      </div>
+
+      <!-- T₁ -->
+      <div class="input-group">
+        <label>زمان T₁ (ماه) <span class="tooltip" title="مدت پیش‌بینی‌شده اجرای پروژه از زمان مناقصه">ℹ️</span></label>
+        <input type="number" id="T1" value="12" step="1" required />
+      </div>
+
+      <!-- T₂ -->
+      <div class="input-group">
+        <label>زمان T₂ (ماه) <span class="tooltip" title="مدت زمان پرداخت پس از تحویل پروژه">ℹ️</span></label>
+        <input type="number" id="T2" value="1" step="1" required />
+      </div>
+
+      <button type="submit">محاسبه دامنه قیمت</button>
+    </form>
+
+    <div id="result">
+      <h2>نتایج محاسبه</h2>
+      <p><strong>P₀ (قیمت مبنا):</strong> <span id="res-P0"></span></p>
+      <p><strong>β:</strong> <span id="res-beta"></span></p>
+      <p><strong>γ:</strong> <span id="res-gamma"></span></p>
+      <p><strong>Pb (دامنه قیمت متناسب):</strong> <span id="res-Pb"></span></p>
+    </div>
+
+    <canvas id="chart" width="400" height="200"></canvas>
+
+    <button id="pdfBtn">ذخیره گزارش به‌صورت PDF</button>
+
+    <footer>© 1404 — کلیه حقوق محفوظ است. طراحی و توسعه: محمدرضا پویا</footer>
+  </div>
+
+  <script>
+    document.getElementById('calcForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const P0 = parseFloat(document.getElementById('P0').value);
+      const I1 = parseFloat(document.getElementById('I1').value);
+      const I2 = parseFloat(document.getElementById('I2').value);
+      const I3 = parseFloat(document.getElementById('I3').value);
+      const I4 = parseFloat(document.getElementById('I4').value);
+      const alpha = parseFloat(document.getElementById('alpha').value);
+      const z = parseFloat(document.getElementById('z').value);
+      const T1 = parseFloat(document.getElementById('T1').value);
+      const T2 = parseFloat(document.getElementById('T2').value);
+
+      // محاسبه β = α * (I1 + I4 * z) / 4
+      const beta = alpha * (I1 + I4 * z) / 4;
+
+      // محاسبه γ = [ (I1 - 0.5*I2) + (I3 - I2)/(I3 - I1) + 0.5*(I1 - I2)*T1 ] / [ (I1 - 0.5*I2) + T2 ]
+      const numerator = (I1 - 0.5 * I2) + ((I3 - I2) / (I3 - I1)) + 0.5 * (I1 - I2) * T1;
+      const denominator = (I1 - 0.5 * I2) + T2;
+      const gamma = denominator !== 0 ? numerator / denominator : 0;
+
+      const Pb = P0 * beta * gamma;
+
+      // نمایش نتایج
+      document.getElementById('res-P0').textContent = P0.toLocaleString() + ' تومان';
+      document.getElementById('res-beta').textContent = beta.toFixed(4);
+      document.getElementById('res-gamma').textContent = gamma.toFixed(4);
+      document.getElementById('res-Pb').textContent = Pb.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' تومان';
+
+      document.getElementById('result').style.display = 'block';
+      document.getElementById('chart').style.display = 'block';
+      document.getElementById('pdfBtn').style.display = 'block';
+
+      // نمودار
+      const ctx = document.getElementById('chart').getContext('2d');
+      if (window.priceChart) window.priceChart.destroy();
+      window.priceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['P₀', 'Pb'],
+          datasets: [{
+            label: 'قیمت (تومان)',
+            data: [P0, Pb],
+            backgroundColor: ['#4CAF50', '#FF5722']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    });
+
+    // ذخیره به‌عنوان PDF
+    document.getElementById('pdfBtn').addEventListener('click', function() {
+      const { jsPDF } = window.jspdf;
+      const content = document.querySelector('.container');
+      html2canvas(content).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight * 0.9);
+        pdf.save('damane-motenaseb-report.pdf');
+      });
+    });
+  </script>
+</body>
+</html>
